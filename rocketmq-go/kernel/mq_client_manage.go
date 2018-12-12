@@ -70,6 +70,13 @@ func (m *MqClientManager) RegisterProducer(producer *DefaultMQProducer) {
 	return
 }
 
+//RegisterProducer register producer to this MqClientManager, with rpc hook
+func (m *MqClientManager) RegisterProducerWithRPCHook(producer *DefaultMQProducer, rpcHook *remoting.RPCHook) {
+	producer.producerService = newDefaultProducerServiceWithRPCHook(producer.producerGroup, producer.ProducerConfig, rpcHook, m.mqClient)
+	m.clientFactory.producerTable[producer.producerGroup] = producer
+	return
+}
+
 //RegisterConsumer register consumer to this MqClientManager
 func (m *MqClientManager) RegisterConsumer(consumer *DefaultMQPushConsumer) {
 	if m.defaultProducerService == nil {
@@ -82,6 +89,21 @@ func (m *MqClientManager) RegisterConsumer(consumer *DefaultMQPushConsumer) {
 	consumer.consumeMessageService.init(consumer.consumerGroup, m.mqClient, consumer.offsetStore, m.defaultProducerService, consumer.ConsumerConfig)
 	return
 }
+
+//RegisterConsumer register consumer to this MqClientManager
+func (m *MqClientManager) RegisterConsumerWithRPCHook(consumer *DefaultMQPushConsumer, rpcHook *remoting.RPCHook) {
+	if m.defaultProducerService == nil {
+		m.defaultProducerService = newDefaultProducerService(constant.CLIENT_INNER_PRODUCER_GROUP, rocketmqm.NewProducerConfig(), m.mqClient)
+	}
+	m.mqClient.getRemotingClient().RegisterRPCHook(*rpcHook)
+	consumer.mqClient = m.mqClient
+	consumer.offsetStore = remoteOffsetStoreInit(consumer.consumerGroup, m.mqClient)
+	m.clientFactory.consumerTable[consumer.consumerGroup] = consumer
+	consumer.rebalance = newRebalance(consumer.consumerGroup, consumer.subscription, consumer.mqClient, consumer.offsetStore, consumer.ConsumerConfig)
+	consumer.consumeMessageService.init(consumer.consumerGroup, m.mqClient, consumer.offsetStore, m.defaultProducerService, consumer.ConsumerConfig)
+	return
+}
+
 func (m *MqClientManager) initClientRequestProcessor() (clientRequestProcessor remoting.ClientRequestProcessor) {
 	clientRequestProcessor = func(cmd *remoting.RemotingCommand) (response *remoting.RemotingCommand) {
 		switch cmd.Code {

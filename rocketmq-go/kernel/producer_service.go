@@ -52,6 +52,18 @@ func newDefaultProducerService(producerGroup string, producerConfig *rocketmqm.M
 	defaultProducerService.checkConfig()
 	return
 }
+
+func newDefaultProducerServiceWithRPCHook(producerGroup string, producerConfig *rocketmqm.MqProducerConfig, rpcHook *remoting.RPCHook, mqClient RocketMqClient) (defaultProducerService *DefaultProducerService) {
+	mqClient.getRemotingClient().RegisterRPCHook(*rpcHook)
+	defaultProducerService = &DefaultProducerService{
+		mqClient:       mqClient,
+		producerGroup:  producerGroup,
+		producerConfig: producerConfig,
+	}
+	defaultProducerService.checkConfig()
+	return
+}
+
 func (d *DefaultProducerService) checkConfig() (err error) {
 	// todo check if not pass panic
 	return

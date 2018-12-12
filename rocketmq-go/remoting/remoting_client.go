@@ -40,6 +40,8 @@ type RemotingClient interface {
 	InvokeAsync(addr string, request *RemotingCommand, timeoutMillis int64, invokeCallback InvokeCallback) error
 	//InvokeOneWay one way invoke remote
 	InvokeOneWay(addr string, request *RemotingCommand, timeoutMillis int64) error
+	//RPCHook
+	RegisterRPCHook(rpcHook RPCHook)
 }
 
 //DefaultRemotingClient of RemotingClient
@@ -58,6 +60,7 @@ type DefaultRemotingClient struct {
 	namesvrLockRW            sync.RWMutex
 	clientRequestProcessor   ClientRequestProcessor //mange register the processor here
 	serializerHandler        SerializerHandler      //rocketmq encode decode
+	rpcHook                  RPCHook
 }
 
 //RemotingClientInit create a RemotingClient instance
@@ -76,6 +79,10 @@ func RemotingClientInit(clientConfig *rocketmqm.MqClientConfig, clientRequestPro
 
 //InvokeSync sync invoke remote
 func (drc *DefaultRemotingClient) InvokeSync(addr string, request *RemotingCommand, timeoutMillis int64) (remotingCommand *RemotingCommand, err error) {
+	if drc.rpcHook != nil {
+		drc.rpcHook.DoBeforeRequest(addr, request)
+	}
+
 	var conn net.Conn
 	conn, err = drc.getOrCreateConn(addr)
 	response := &ResponseFuture{
@@ -96,6 +103,10 @@ func (drc *DefaultRemotingClient) InvokeSync(addr string, request *RemotingComma
 	select {
 	case <-response.Done:
 		remotingCommand = response.ResponseCommand
+
+		if drc.rpcHook != nil {
+			drc.rpcHook.DoAfterResponse(addr, request, remotingCommand)
+		}
 		return
 	case <-time.After(time.Duration(timeoutMillis) * time.Millisecond):
 		err = errors.New("invoke sync timeout:" + strconv.FormatInt(timeoutMillis, 10) + " Millisecond")
@@ -105,6 +116,10 @@ func (drc *DefaultRemotingClient) InvokeSync(addr string, request *RemotingComma
 
 //InvokeAsync async invoke remote
 func (drc *DefaultRemotingClient) InvokeAsync(addr string, request *RemotingCommand, timeoutMillis int64, invokeCallback InvokeCallback) error {
+	if drc.rpcHook != nil {
+		drc.rpcHook.DoBeforeRequest(addr, request)
+	}
+
 	conn, err := drc.getOrCreateConn(addr)
 	if err != nil {
 		return err
@@ -129,6 +144,10 @@ func (drc *DefaultRemotingClient) InvokeAsync(addr string, request *RemotingComm
 
 //InvokeOneWay one way invoke remote
 func (drc *DefaultRemotingClient) InvokeOneWay(addr string, request *RemotingCommand, timeoutMillis int64) error {
+	if drc.rpcHook != nil {
+		drc.rpcHook.DoBeforeRequest(addr, request)
+	}
+
 	conn, err := drc.getOrCreateConn(addr)
 	if err != nil {
 		return err
@@ -380,4 +399,8 @@ func (drc *DefaultRemotingClient) ClearExpireResponse() {
 			}
 		}
 	}
+}
+
+func (drc *DefaultRemotingClient) RegisterRPCHook(rpcHook RPCHook) {
+	drc.rpcHook = rpcHook
 }

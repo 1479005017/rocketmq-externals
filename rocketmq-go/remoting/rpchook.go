@@ -21,6 +21,6 @@ package remoting
 type RPCHook interface {
 	//DoBeforeRequest DoBeforeRequest
 	DoBeforeRequest(string, *RemotingCommand)
-	//DoBeforeResponse DoBeforeResponse
-	DoBeforeResponse(string, *RemotingCommand)
+	//DoAfterResponse DoAfterResponse
+	DoAfterResponse(string, *RemotingCommand, *RemotingCommand)
 }

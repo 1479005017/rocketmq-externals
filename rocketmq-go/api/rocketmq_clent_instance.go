@@ -20,14 +20,19 @@ package rocketmq
 import (
 	"github.com/apache/incubator-rocketmq-externals/rocketmq-go/api/model"
 	"github.com/apache/incubator-rocketmq-externals/rocketmq-go/kernel"
+	"github.com/apache/incubator-rocketmq-externals/rocketmq-go/remoting"
 )
 
 //MQClientInstance MQClientInstance
 type MQClientInstance interface {
 	//Register rocketmq producer to this client instance
 	RegisterProducer(producer MQProducer)
+	//Register rocketmq producer to this client instance, with rpc hook
+	RegisterProducerWithRPCHook(producer MQProducer, rpcHook remoting.RPCHook)
 	//Register rocketmq consumer to this client instance
 	RegisterConsumer(consumer MQConsumer)
+	//Register rocketmq consumer to this client instance, with rpc hook
+	RegisterConsumerWithRPCHook(consumer MQConsumer, rpcHook remoting.RPCHook)
 	// start this client instance. (register should before start)
 	Start()
 }
@@ -54,9 +59,19 @@ func (r *ClientInstanceImpl) RegisterProducer(producer MQProducer) {
 	r.rocketMqManager.RegisterProducer(producer.(*kernel.DefaultMQProducer))
 }
 
+//RegisterProducer register producer to this client instance, with rpc hook
+func (r *ClientInstanceImpl) RegisterProducerWithRPCHook(producer MQProducer, rpcHook remoting.RPCHook) {
+	r.rocketMqManager.RegisterProducerWithRPCHook(producer.(*kernel.DefaultMQProducer), &rpcHook)
+}
+
 //RegisterConsumer register consumer to this client instance
 func (r *ClientInstanceImpl) RegisterConsumer(consumer MQConsumer) {
 	r.rocketMqManager.RegisterConsumer(consumer.(*kernel.DefaultMQPushConsumer))
+}
+
+//RegisterConsumer register consumer to this client instance, with rpc hook
+func (r *ClientInstanceImpl) RegisterConsumerWithRPCHook(consumer MQConsumer, rpcHook remoting.RPCHook) {
+	r.rocketMqManager.RegisterConsumerWithRPCHook(consumer.(*kernel.DefaultMQPushConsumer), &rpcHook)
 }
 
 //Start start this client instance. (register should before start)
