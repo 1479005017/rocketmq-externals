@@ -85,6 +85,9 @@ func (drc *DefaultRemotingClient) InvokeSync(addr string, request *RemotingComma
 
 	var conn net.Conn
 	conn, err = drc.getOrCreateConn(addr)
+	if err != nil {
+		return
+	}
 	response := &ResponseFuture{
 		SendRequestOK:  false,
 		Opaque:         request.Opaque,
